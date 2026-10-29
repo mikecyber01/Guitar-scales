@@ -46,13 +46,13 @@ svg{display:block;min-width:760px;width:100%;height:auto}
 .hint{color:var(--mut);font-size:13px;text-align:center;margin-top:6px}
 .gb{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--chip);border-radius:14px;padding:10px 12px;margin-bottom:10px}
 .gb b{font-size:18px}
-.hit{cursor:pointer}.hit:hover{fill:rgba(255,255,255,.3)}
+.hit,.key{cursor:pointer}.hit:hover{fill:rgba(255,255,255,.3)}.key:hover{opacity:.85}
 </style>
 </head>
 <body>
 <div class="w">
 <h1>🎸 Guitar <span>Scales</span></h1>
-<p class="sub">Elige tonalidad y escala, y toca los puntos para escuchar cada nota.</p>
+<p class="sub">Guitarra, bajo, ukelele, violín y piano. Toca los puntos para escuchar cada nota.</p>
 
 <div class="card"><p class="lab">Instrumento</p><div class="row" id="insts"></div></div>
 <div class="card root"><p class="lab">1 · Tonalidad</p><div class="row" id="roots"></div></div>
@@ -66,12 +66,13 @@ svg{display:block;min-width:760px;width:100%;height:auto}
 </div>
 
 <div class="card">
-<p class="lab" id="plab">3 · Vista del mástil</p>
+<p class="lab" id="plab">3 · Vista</p>
 <div class="row" id="poss"></div>
 </div>
 
 <div class="card">
-<div id="gbox"></div><div class="neckw"><svg id="neck" viewBox="0 0 1040 262" role="img" aria-label="Mástil de guitarra"></svg></div>
+<div id="gbox"></div>
+<div class="neckw"><svg id="neck" viewBox="0 0 1040 262" role="img" aria-label="Instrumento"></svg></div>
 <p class="hint" id="hint"></p>
 <div class="row" style="margin-top:10px;justify-content:center">
 <button id="tLab"></button><button id="tLang"></button><button id="tAcc"></button><button id="tTheme">🌓 Tema</button>
@@ -96,35 +97,57 @@ var SC=[
 var SH=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"],
 FL=["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"],
 ES={C:"Do",D:"Re",E:"Mi",F:"Fa",G:"Sol",A:"La",B:"Si"},
-OPEN=[40,45,50,55,59,64],NS=6,LOW=40,MAXF=15,GT=[40,45,50,55,59,64],BT=[28,33,38,43],
+INST={
+gtr:{n:"🎸 Guitarra",o:[40,45,50,55,59,64],mf:15,top:"Mi agudo"},
+bass:{n:"🎸 Bajo",o:[28,33,38,43],mf:15,top:"Sol"},
+uke:{n:"🪕 Ukelele",o:[67,60,64,69],mf:15,top:"La"},
+vio:{n:"🎻 Violín",o:[55,62,69,76],mf:17,top:"Mi"},
+pia:{n:"🎹 Piano"}},
+IK=["gtr","bass","uke","vio","pia"],
+OPEN,NS,MAXF,LOW,PI=false,DI=0,
 S={root:9,sc:2,pos:0,lab:"note",es:true,fl:false,inst:"gtr"},
 G={on:false,lvl:"easy",score:0,lives:3,streak:0,best:0,pos:1,found:{},bad:null,over:false,round:0,msg:""};
 var $=function(id){return document.getElementById(id)};
+function setInst(k){S.inst=k;PI=k=="pia";if(PI){LOW=48}else{OPEN=INST[k].o;NS=OPEN.length;MAXF=INST[k].mf;LOW=Math.min.apply(null,OPEN)}}
+setInst("gtr");
 
-function nm(pc){var n=(S.fl?FL:SH)[pc%12];var b=ES&&S.es?ES[n[0]]+n.slice(1):n;return b.replace("#","♯").replace("b","♭").replace("♭","♭")}
 function nmFix(pc){var n=(S.fl?FL:SH)[pc%12];var base=S.es?ES[n[0]]:n[0];var a=n.slice(1);return base+(a=="#"?"♯":a=="b"?"♭":"")}
 function degs(iv){var has=function(x){return iv.indexOf(x)>=0};
 return iv.map(function(x){if(x==6)return has(7)&&!has(5)?"♯4":"♭5";
 return{0:"1",1:"♭2",2:"2",3:"♭3",4:"3",5:"4",7:"5",8:"♭6",9:"6",10:"♭7",11:"7"}[x]})}
+function npos(){return PI?2:S.inst=="vio"?7:SC[S.sc].i.length}
+function pitchOf(s,f){return PI?s:OPEN[s]+f}
 
-function calc(pp){pp=pp===undefined?S.pos:pp;
-var sc=SC[S.sc],iv=sc.i,pcs=iv.map(function(x){return(S.root+x)%12});
-var all=[];
-for(var s=0;s<NS;s++)for(var f=0;f<=MAXF;f++){var p=OPEN[s]+f,k=pcs.indexOf(p%12);if(k>=0)all.push({s:s,f:f,p:p,k:k})}
-var pat=null;
+function calc(pp){
+pp=pp===undefined?S.pos:pp;
+var sc=SC[S.sc],iv=sc.i,pcs=iv.map(function(x){return(S.root+x)%12}),all=[],pat=null,p,k;
+if(PI){
+for(p=48;p<=84;p++){k=pcs.indexOf(p%12);if(k>=0)all.push({s:p,f:0,p:p,k:k})}
+if(pp>0){var r=48;while(r%12!=pcs[0])r++;var lo=r,hi=r+12*pp;
+if(G.on){lo=r+12*(pp-1);hi=lo+12}
+pat=all.filter(function(n){return n.p>=lo&&n.p<=hi})}
+}else{
+for(var s=0;s<NS;s++)for(var f=0;f<=MAXF;f++){p=OPEN[s]+f;k=pcs.indexOf(p%12);if(k>=0)all.push({s:s,f:f,p:p,k:k})}
 if(pp>0){
+var I=S.inst;pat=[];
+if(I=="gtr"||I=="bass"){
 var k0=pp-1,per=iv.length==5?2:3,sp=[];
-for(var p=16;p<110;p++)if(pcs.indexOf(p%12)>=0)sp.push(p);
+for(p=16;p<110;p++)if(pcs.indexOf(p%12)>=0)sp.push(p);
 var st=LOW;while(st%12!=pcs[k0])st++;
-pat=[];
 [0,12].forEach(function(sh){
 var idx=sp.indexOf(st+sh);
 for(var s=0;s<NS;s++){
 while(sp[idx]<OPEN[s])idx++;
-for(var j=0;j<per;j++){var p=sp[idx+j],f=p-OPEN[s];
-if(f>=0&&f<=MAXF)pat.push({s:s,f:f,p:p,k:pcs.indexOf(p%12)})}
+for(var j=0;j<per;j++){var q=sp[idx+j],f=q-OPEN[s];
+if(f>=0&&f<=MAXF)pat.push({s:s,f:f,p:q,k:pcs.indexOf(q%12)})}
 idx+=per}});
-}
+}else if(I=="uke"){
+var C=OPEN[1],a=0;while((C+a)%12!=pcs[pp-1])a++;
+[0,12].forEach(function(sh){var lo=Math.max(0,a-1)+sh,hi=a+3+sh;
+all.forEach(function(n){if(n.f>=lo&&n.f<=hi)pat.push(n)})});
+}else{
+var l=(pp-1)*2;pat=all.filter(function(n){return n.f>=l&&n.f<=l+7})}
+}}
 return{sc:sc,pcs:pcs,all:all,pat:pat,dg:degs(iv)}}
 
 function X(f){var a=1-Math.pow(2,-MAXF/12);return 70+940*(1-Math.pow(2,-f/12))/a}
@@ -141,53 +164,51 @@ g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.35,t+.01);g.gain.expo
 o.connect(g);o2.connect(g);g.connect(ctx.destination);o.start(t);o2.start(t);o.stop(t+1.4);o2.stop(t+1.4)}catch(e){}}
 function flash(p){document.querySelectorAll('[data-p="'+p+'"]').forEach(function(e){e.classList.add("glow");setTimeout(function(){e.classList.remove("glow")},450)})}
 
-function drawOld(){
-var c=calc(),svg=$("neck"),h="";
-h+='<defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--wood)"/><stop offset="1" stop-color="var(--wood2)"/></linearGradient></defs>';
-h+='<rect x="70" y="14" width="'+(X(MAXF)-70+20)+'" height="'+(Y(0)-Y(5)+40)+'" rx="8" fill="url(#wg)"/>';
-[3,5,7,9,15].forEach(function(f){h+='<circle cx="'+XC(f)+'" cy="'+((Y(0)+Y(5))/2)+'" r="7" fill="#fff" opacity=".18"/>'});
-h+='<circle cx="'+XC(12)+'" cy="'+(Y(2)+8)+'" r="7" fill="#fff" opacity=".18"/><circle cx="'+XC(12)+'" cy="'+(Y(3)-8)+'" r="7" fill="#fff" opacity=".18"/>';
-for(var f=1;f<=MAXF;f++)h+='<line x1="'+X(f)+'" x2="'+X(f)+'" y1="'+(Y(5)-20)+'" y2="'+(Y(0)+20)+'" stroke="var(--fret)" stroke-width="3"/>';
-h+='<rect x="66" y="'+(Y(5)-20)+'" width="7" height="'+(Y(0)-Y(5)+40)+'" fill="#f4efe2"/>';
-for(var s=0;s<6;s++)h+='<line x1="'+(S.root>=0?44:44)+'" x2="'+X(MAXF)+'" y1="'+Y(s)+'" y2="'+Y(s)+'" stroke="var(--str)" stroke-width="'+(1+(5-s)*.5)+'" opacity=".9"/>';
-for(var f=1;f<=MAXF;f++)h+='<text x="'+XC(f)+'" y="'+(Y(0)+42)+'" text-anchor="middle" font-size="13" fill="var(--mut)">'+f+'</text>';
-var pts=c.pat||c.all,ghost=c.pat?c.all:[];
+function dotSVG(n,cx,cy,c,r,noClick){
+var root=n.k==0,col=root?"var(--acc)":"var(--acc2)",tc=root?"#fff":"#062a27",t=S.lab=="note"?nmFix(n.p%12):c.dg[n.k];
+return '<g class="dot" data-p="'+n.p+'" style="animation-delay:'+(DI++%30*12)+'ms'+(noClick?';pointer-events:none':'')+'" onclick="ping('+n.p+');flash('+n.p+')"><circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+col+'" stroke="rgba(0,0,0,.3)" stroke-width="1.5"/><text x="'+cx+'" y="'+(cy+4.5)+'" text-anchor="middle" font-size="'+(t.length>2?11:13)+'" font-weight="700" fill="'+tc+'" pointer-events="none">'+t+'</text></g>'}
+function badSVG(cx,cy,r){return '<g class="dot" style="pointer-events:none"><circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="#ff2d2d"/><text x="'+cx+'" y="'+(cy+5)+'" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">✕</text></g>'}
+
+function fretSVG(c,pts,ghost,inG){
+var T=NS-1,mid=(Y(0)+Y(T))/2,vio=S.inst=="vio",h="",f,s;
+h+='<defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+(vio?"#2e2723":"var(--wood)")+'"/><stop offset="1" stop-color="'+(vio?"#1a1512":"var(--wood2)")+'"/></linearGradient></defs>';
+h+='<rect x="70" y="'+(Y(T)-20)+'" width="'+(X(MAXF)-70+20)+'" height="'+(Y(0)-Y(T)+40)+'" rx="8" fill="url(#wg)"/>';
+if(!vio){[3,5,7,9,15].forEach(function(f){h+='<circle cx="'+XC(f)+'" cy="'+mid+'" r="7" fill="#fff" opacity=".18"/>'});
+h+='<circle cx="'+XC(12)+'" cy="'+(mid-19)+'" r="7" fill="#fff" opacity=".18"/><circle cx="'+XC(12)+'" cy="'+(mid+19)+'" r="7" fill="#fff" opacity=".18"/>'}
+for(f=1;f<=MAXF;f++){h+='<line x1="'+X(f)+'" x2="'+X(f)+'" y1="'+(Y(T)-20)+'" y2="'+(Y(0)+20)+'" stroke="var(--fret)" stroke-width="'+(vio?1:3)+'" opacity="'+(vio?.45:1)+'"/>';
+h+='<text x="'+XC(f)+'" y="'+(Y(0)+42)+'" text-anchor="middle" font-size="'+(vio?11:13)+'" fill="var(--mut)">'+f+'</text>'}
+h+='<rect x="66" y="'+(Y(T)-20)+'" width="7" height="'+(Y(0)-Y(T)+40)+'" fill="#f4efe2"/>';
+for(s=0;s<NS;s++)h+='<line x1="44" x2="'+X(MAXF)+'" y1="'+Y(s)+'" y2="'+Y(s)+'" stroke="var(--str)" stroke-width="'+(1+(T-s)*(NS==4?.9:.5))+'" opacity=".9"/>';
 ghost.forEach(function(n){h+='<circle cx="'+XC(n.f)+'" cy="'+Y(n.s)+'" r="5" fill="#fff" opacity=".25"/>'});
-var d=0;
-pts.forEach(function(n){
-var root=n.k==0,col=root?"var(--acc)":"var(--acc2)",tc=root?"#fff":"#062a27";
-var t=S.lab=="note"?nmFix(n.p%12):c.dg[n.k];
-h+='<g class="dot" data-p="'+n.p+'" style="animation-delay:'+(d++%30*12)+'ms" onclick="ping('+n.p+');flash('+n.p+')"><circle cx="'+XC(n.f)+'" cy="'+Y(n.s)+'" r="'+(S.lab=="note"&&t.length>2?15:14)+'" fill="'+col+'" stroke="rgba(0,0,0,.25)" stroke-width="1.5"/><text x="'+XC(n.f)+'" y="'+(Y(n.s)+4.5)+'" text-anchor="middle" font-size="'+(t.length>2?11:13)+'" font-weight="700" fill="'+tc+'" pointer-events="none">'+t+'</text></g>'});
-svg.innerHTML=h;
-$("title").textContent=nmFix(S.root)+" "+c.sc.n.toLowerCase();
-$("info").innerHTML="<b>Notas:</b> "+c.pcs.map(nmFix).join(" · ")+" &nbsp; <b>Grados:</b> "+c.dg.join(" ")}
+pts.forEach(function(n){h+=dotSVG(n,XC(n.f),Y(n.s),c,vio?13:14)});
+if(inG&&G.bad)h+=badSVG(XC(G.bad.f),Y(G.bad.s),14);
+if(inG&&!G.over)for(s=0;s<NS;s++)for(f=0;f<=MAXF;f++)h+='<circle class="hit" cx="'+XC(f)+'" cy="'+Y(s)+'" r="15" fill="rgba(255,255,255,0.001)" onclick="gclick('+s+','+f+')"/>';
+return h}
+
+function kc(p){if(G.on&&!G.over)gclick(p,0);else{ping(p);flash(p)}}
+function pianoSVG(c,pts,ghost,inG){
+var W=46,H=190,h="",wk=[],bk=[],i=0,isW=[0,2,4,5,7,9,11],pos={};
+for(var p=48;p<=84;p++){if(isW.indexOf(p%12)>=0){wk.push({p:p,x:i*W});pos[p]={x:i*W+W/2,y:H-34,r:14};i++}else{bk.push({p:p,x:i*W});pos[p]={x:i*W,y:96,r:11}}}
+h+='<rect x="0" y="0" width="'+(i*W)+'" height="'+H+'" fill="#111" rx="6"/>';
+wk.forEach(function(w){h+='<rect class="key" x="'+(w.x+1)+'" y="1" width="'+(W-2)+'" height="'+(H-2)+'" rx="4" fill="#fbf8f2" stroke="#999" onclick="kc('+w.p+')"/>';
+if(w.p%12==0)h+='<text x="'+(w.x+W/2)+'" y="'+(H-7)+'" text-anchor="middle" font-size="11" fill="#777" pointer-events="none">'+nmFix(0)+(Math.floor(w.p/12)-1)+'</text>'});
+bk.forEach(function(b){h+='<rect class="key" x="'+(b.x-14)+'" y="1" width="28" height="120" rx="3" fill="#25212b" onclick="kc('+b.p+')"/>'});
+ghost.forEach(function(n){var q=pos[n.p];h+='<circle cx="'+q.x+'" cy="'+q.y+'" r="5" fill="'+(q.r==11?"rgba(255,255,255,.55)":"rgba(0,0,0,.3)")+'" pointer-events="none"/>'});
+pts.forEach(function(n){var q=pos[n.p];h+=dotSVG(n,q.x,q.y,c,q.r,true)});
+if(inG&&G.bad){var q=pos[G.bad.s];h+=badSVG(q.x,q.y,q.r)}
+return h}
 
 function draw(){
-var inG=G.on,c=calc(inG?G.pos:undefined),svg=$("neck"),h="",T=NS-1,mid=(Y(0)+Y(T))/2;
-svg.setAttribute("viewBox","0 0 1040 "+(Y(0)+50));
-h+='<defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--wood)"/><stop offset="1" stop-color="var(--wood2)"/></linearGradient></defs>';
-h+='<rect x="70" y="'+(Y(T)-20)+'" width="'+(X(MAXF)-70+20)+'" height="'+(Y(0)-Y(T)+40)+'" rx="8" fill="url(#wg)"/>';
-[3,5,7,9,15].forEach(function(f){h+='<circle cx="'+XC(f)+'" cy="'+mid+'" r="7" fill="#fff" opacity=".18"/>'});
-h+='<circle cx="'+XC(12)+'" cy="'+(mid-19)+'" r="7" fill="#fff" opacity=".18"/><circle cx="'+XC(12)+'" cy="'+(mid+19)+'" r="7" fill="#fff" opacity=".18"/>';
-for(var f=1;f<=MAXF;f++){h+='<line x1="'+X(f)+'" x2="'+X(f)+'" y1="'+(Y(T)-20)+'" y2="'+(Y(0)+20)+'" stroke="var(--fret)" stroke-width="3"/>';h+='<text x="'+XC(f)+'" y="'+(Y(0)+42)+'" text-anchor="middle" font-size="13" fill="var(--mut)">'+f+'</text>'}
-h+='<rect x="66" y="'+(Y(T)-20)+'" width="7" height="'+(Y(0)-Y(T)+40)+'" fill="#f4efe2"/>';
-for(var s=0;s<NS;s++)h+='<line x1="44" x2="'+X(MAXF)+'" y1="'+Y(s)+'" y2="'+Y(s)+'" stroke="var(--str)" stroke-width="'+(1+(T-s)*(NS==4?.9:.5))+'" opacity=".9"/>';
-var pts,ghost=[];
+var inG=G.on,c=calc(inG?G.pos:undefined),svg=$("neck"),pts,ghost=[];
 if(inG){pts=c.pat.filter(function(n){return G.found[n.s+","+n.f]})}else{pts=c.pat||c.all;ghost=c.pat?c.all:[]}
-ghost.forEach(function(n){h+='<circle cx="'+XC(n.f)+'" cy="'+Y(n.s)+'" r="5" fill="#fff" opacity=".25"/>'});
-var d=0;
-pts.forEach(function(n){
-var root=n.k==0,col=root?"var(--acc)":"var(--acc2)",tc=root?"#fff":"#062a27";
-var t=S.lab=="note"?nmFix(n.p%12):c.dg[n.k];
-h+='<g class="dot" data-p="'+n.p+'" style="animation-delay:'+(d++%30*12)+'ms" onclick="ping('+n.p+');flash('+n.p+')"><circle cx="'+XC(n.f)+'" cy="'+Y(n.s)+'" r="14" fill="'+col+'" stroke="rgba(0,0,0,.25)" stroke-width="1.5"/><text x="'+XC(n.f)+'" y="'+(Y(n.s)+4.5)+'" text-anchor="middle" font-size="'+(t.length>2?11:13)+'" font-weight="700" fill="'+tc+'" pointer-events="none">'+t+'</text></g>'});
-if(inG&&G.bad)h+='<g class="dot"><circle cx="'+XC(G.bad.f)+'" cy="'+Y(G.bad.s)+'" r="14" fill="#ff2d2d"/><text x="'+XC(G.bad.f)+'" y="'+(Y(G.bad.s)+5)+'" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">✕</text></g>';
-if(inG&&!G.over)for(var s=0;s<NS;s++)for(var f=0;f<=MAXF;f++)h+='<circle class="hit" cx="'+XC(f)+'" cy="'+Y(s)+'" r="15" fill="rgba(255,255,255,0.001)" onclick="gclick('+s+','+f+')"/>';
-svg.innerHTML=h;
+DI=0;
+svg.setAttribute("viewBox",PI?"0 0 1012 190":"0 0 1040 "+(Y(0)+50));
+svg.innerHTML=PI?pianoSVG(c,pts,ghost,inG):fretSVG(c,pts,ghost,inG);
 $("title").textContent=nmFix(S.root)+" "+c.sc.n.toLowerCase();
 $("info").innerHTML="<b>Notas:</b> "+c.pcs.map(nmFix).join(" · ")+" &nbsp; <b>Grados:</b> "+c.dg.join(" ")}
 
 function newRound(){
-var n=SC[S.sc].i.length,np;
+var n=npos(),np;
 do{np=1+Math.floor(Math.random()*n)}while(n>1&&np==G.pos&&G.round>0);
 G.pos=np;G.found={};G.msg="";G.round++;
 if(G.lvl=="easy")calc(np).pat.forEach(function(x){if(x.k==0)G.found[x.s+","+x.f]=1})}
@@ -196,10 +217,10 @@ function startGame(){G.on=true;G.score=0;G.lives=3;G.streak=0;G.over=false;G.rou
 function gclick(s,f){
 if(G.over)return;
 var c=calc(G.pos),key=s+","+f,ok=c.pat.some(function(n){return n.s==s&&n.f==f});
-ping(OPEN[s]+f);
+ping(pitchOf(s,f));
 if(G.found[key])return;
 if(ok){G.found[key]=1;G.streak++;G.score+=10+Math.min(G.streak,10);
-if(Object.keys(G.found).length>=c.pat.length){G.score+=50;G.msg="🎉 ¡Posición completada! +50";draw();gui();setTimeout(nextRound,1300);return}}
+if(Object.keys(G.found).length>=c.pat.length){G.score+=50;G.msg="🎉 ¡Completado! +50";draw();gui();setTimeout(nextRound,1300);return}}
 else{G.lives--;G.streak=0;G.score=Math.max(0,G.score-5);G.bad={s:s,f:f};
 setTimeout(function(){G.bad=null;draw()},450);
 if(G.lives<=0){G.over=true;G.best=Math.max(G.best,G.score)}}
@@ -207,36 +228,32 @@ draw();gui()}
 function gui(){
 var b=$("gbox");
 if(!G.on){b.innerHTML="";return}
-var c=calc(G.pos),fd=Object.keys(G.found).length;
-b.innerHTML='<div class="gb"><div><b>Posición '+G.pos+'</b> · '+nmFix(S.root)+' '+c.sc.n.toLowerCase()+'<br><span class="info">'+(G.over?"💥 ¡Fin de partida! Mejor: "+G.best:G.msg||"Marca todas las notas de esta posición ("+fd+"/"+c.pat.length+")")+'</span></div><div><b>⭐ '+G.score+'</b> &nbsp; '+"❤️".repeat(G.lives)+"🖤".repeat(3-G.lives)+' &nbsp; 🔥'+G.streak+'</div><div class="row"><button id="gl">Nivel: '+(G.lvl=="easy"?"Fácil":"Difícil")+'</button><button id="gn">'+(G.over?"↻ Jugar otra vez":"⏭ Otra posición")+'</button><button id="gx">✖ Salir</button></div></div>';
+var c=calc(G.pos),fd=Object.keys(G.found).length,u=PI?"Octava ":"Posición ";
+b.innerHTML='<div class="gb"><div><b>'+u+G.pos+'</b> · '+nmFix(S.root)+' '+c.sc.n.toLowerCase()+'<br><span class="info">'+(G.over?"💥 ¡Fin de partida! Mejor: "+G.best:G.msg||"Marca todas las notas ("+fd+"/"+c.pat.length+")")+'</span></div><div><b>⭐ '+G.score+'</b> &nbsp; '+"❤️".repeat(G.lives)+"🖤".repeat(3-G.lives)+' &nbsp; 🔥'+G.streak+'</div><div class="row"><button id="gl">Nivel: '+(G.lvl=="easy"?"Fácil":"Difícil")+'</button><button id="gn">'+(G.over?"↻ Jugar otra vez":"⏭ Otra")+'</button><button id="gx">✖ Salir</button></div></div>';
 $("gl").onclick=function(){G.lvl=G.lvl=="easy"?"hard":"easy";startGame()};
 $("gn").onclick=function(){if(G.over)startGame();else nextRound()};
 $("gx").onclick=function(){G.on=false;ui()}}
+
+function chips(id,arr,cur,fn){var e=$(id);e.innerHTML="";arr.forEach(function(t,i){var b=document.createElement("button");b.textContent=t;if(i==cur)b.className="on";b.onclick=function(){fn(i)};e.appendChild(b)})}
+function again(){if(G.on)startGame();else ui()}
 function ui(){
-chips("insts",["🎸 Guitarra (6 cuerdas)","🎸 Bajo (4 cuerdas)"],S.inst=="gtr"?0:1,function(i){S.inst=i?"bass":"gtr";OPEN=i?BT:GT;NS=i?4:6;LOW=OPEN[0];if(G.on)startGame();else ui()});
-chips("roots",SH.map(function(_,i){return nmFix(i)}),S.root,function(i){S.root=i;if(G.on)startGame();else ui()});
-chips("scales",SC.map(function(x){return x.n}),S.sc,function(i){S.sc=i;S.pos=0;if(G.on)startGame();else ui()});
-var n=SC[S.sc].i.length,p=["🎸 Mástil entero"];for(var i=1;i<=n;i++)p.push("Posición "+i);
+chips("insts",IK.map(function(k){return INST[k].n}),IK.indexOf(S.inst),function(i){setInst(IK[i]);S.pos=0;again()});
+chips("roots",SH.map(function(_,i){return nmFix(i)}),S.root,function(i){S.root=i;again()});
+chips("scales",SC.map(function(x){return x.n}),S.sc,function(i){S.sc=i;S.pos=0;again()});
+var p,n=npos();
+if(PI)p=["🎹 Teclado completo","1 octava","2 octavas"];
+else{p=["Mástil entero"];for(var i=1;i<=n;i++)p.push("Posición "+i);if(S.inst=="vio")p[0]="Toda la escala"}
 chips("poss",p,S.pos,function(i){S.pos=i;ui()});
+$("plab").textContent=PI?"3 · Vista del teclado":S.inst=="vio"?"3 · Posiciones (en semitonos)":"3 · Vista del mástil";
 $("poss").style.display=$("plab").style.display=G.on?"none":"";
 $("tLab").textContent=S.lab=="note"?"🔤 Mostrar grados":"🔤 Mostrar notas";
 $("tLang").textContent=S.es?"Do Re Mi → C D E":"C D E → Do Re Mi";
 $("tAcc").textContent=S.fl?"Usar sostenidos ♯":"Usar bemoles ♭";
 $("gbtn").textContent=G.on?"🎮 Jugando…":"🎮 Modo juego";
 $("gbtn").onclick=startGame;
-$("hint").textContent=G.on?"Toca en el mástil dónde va cada nota de la posición. Acierto suma puntos, fallo resta una vida.":"Rosa = nota tónica · Turquesa = resto de la escala · Cuerda superior = "+(NS==6?"Mi agudo":"Sol");
+var I=INST[S.inst],ex=PI?"Teclas desde Do3 hasta Do6.":S.inst=="vio"?"Sin trastes: los números son semitonos desde la cuerda al aire. Cuerda superior = "+I.top+".":S.inst=="uke"?"Afinación Sol-Do-Mi-La (la Sol es aguda). Cuerda superior = La.":"Cuerda superior = "+I.top+".";
+$("hint").textContent=G.on?"Toca dónde va cada nota. Acierto suma puntos, fallo resta una vida.":"Rosa = tónica · Turquesa = resto de la escala · "+ex;
 draw();gui()}
-
-function chips(id,arr,cur,fn){var e=$(id);e.innerHTML="";arr.forEach(function(t,i){var b=document.createElement("button");b.textContent=t;if(i==cur)b.className="on";b.onclick=function(){fn(i)};e.appendChild(b)})}
-function uiOld(){
-chips("roots",SH.map(function(_,i){return nmFix(i)+(S.fl&&FL[i].length>1?"":"")}),S.root,function(i){S.root=i;ui()});
-chips("scales",SC.map(function(x){return x.n}),S.sc,function(i){S.sc=i;S.pos=0;ui()});
-var n=SC[S.sc].i.length,p=["🎸 Mástil entero"];for(var i=1;i<=n;i++)p.push("Posición "+i);
-chips("poss",p,S.pos,function(i){S.pos=i;ui()});
-$("tLab").textContent=S.lab=="note"?"🔤 Mostrar grados":"🔤 Mostrar notas";
-$("tLang").textContent=S.es?"Do Re Mi → C D E":"C D E → Do Re Mi";
-$("tAcc").textContent=S.fl?"Usar sostenidos ♯":"Usar bemoles ♭";
-draw()}
 $("tLab").onclick=function(){S.lab=S.lab=="note"?"deg":"note";ui()};
 $("tLang").onclick=function(){S.es=!S.es;ui()};
 $("tAcc").onclick=function(){S.fl=!S.fl;ui()};
